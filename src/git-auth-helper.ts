@@ -53,7 +53,8 @@ class GitAuthHelper {
 
     // Token auth header
     const serverUrl = urlHelper.getServerUrl(this.settings.githubServerUrl)
-    this.tokenConfigKey = `http.${serverUrl.origin}/.extraheader` // "origin" is SCHEME://HOSTNAME[:PORT]
+    const baseUrl = urlHelper.getBaseUrl(serverUrl)
+    this.tokenConfigKey = `http.${baseUrl}/.extraheader` // "origin" is SCHEME://HOSTNAME[:PORT]
     const basicCredential = Buffer.from(
       `x-access-token:${this.settings.authToken}`,
       'utf8'
@@ -63,7 +64,7 @@ class GitAuthHelper {
     this.tokenConfigValue = `AUTHORIZATION: basic ${basicCredential}`
 
     // Instead of SSH URL
-    this.insteadOfKey = `url.${serverUrl.origin}/.insteadOf` // "origin" is SCHEME://HOSTNAME[:PORT]
+    this.insteadOfKey = `url.${baseUrl}/.insteadOf` // "origin" is SCHEME://HOSTNAME[:PORT]
     this.insteadOfValues.push(`git@${serverUrl.hostname}:`)
     if (this.settings.workflowOrganizationId) {
       this.insteadOfValues.push(
@@ -215,7 +216,7 @@ class GitAuthHelper {
     await fs.promises.mkdir(runnerTemp, {recursive: true})
     await fs.promises.writeFile(
       this.sshKeyPath,
-      this.settings.sshKey.trim() + '\n',
+      `${this.settings.sshKey.trim()}\n`,
       {mode: 0o600}
     )
 
@@ -352,7 +353,7 @@ class GitAuthHelper {
 
   private async removeGitConfig(
     configKey: string,
-    submoduleOnly: boolean = false
+    submoduleOnly = false
   ): Promise<void> {
     if (!submoduleOnly) {
       if (

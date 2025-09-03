@@ -2,6 +2,10 @@ import * as assert from 'assert'
 import {URL} from 'url'
 import {IGitSourceSettings} from './git-source-settings'
 
+export function getBaseUrl(u: URL): string {
+  return `${u.protocol}//${u.host}${u.pathname.replace(/\/+$/g, '')}`
+}
+
 export function getFetchUrl(settings: IGitSourceSettings): string {
   assert.ok(
     settings.repositoryOwner,
@@ -17,7 +21,7 @@ export function getFetchUrl(settings: IGitSourceSettings): string {
   }
 
   // "origin" is SCHEME://HOSTNAME[:PORT]
-  return `${serviceUrl.origin}/${encodedOwner}/${encodedName}`
+  return `${getBaseUrl(serviceUrl)}/${encodedOwner}/${encodedName}`
 }
 
 export function getServerUrl(url?: string): URL {
@@ -31,11 +35,11 @@ export function getServerUrl(url?: string): URL {
 
 export function getServerApiUrl(url?: string): string {
   if (hasContent(url, WhitespaceMode.Trim)) {
-    let serverUrl = getServerUrl(url)
+    const serverUrl = getServerUrl(url)
     if (isGhes(url)) {
       serverUrl.pathname = 'api/v3'
     } else {
-      serverUrl.hostname = 'api.' + serverUrl.hostname
+      serverUrl.hostname = `api.${serverUrl.hostname}`
     }
 
     return pruneSuffix(serverUrl.toString(), '/')

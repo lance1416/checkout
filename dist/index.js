@@ -166,13 +166,14 @@ class GitAuthHelper {
         this.settings = gitSourceSettings || {};
         // Token auth header
         const serverUrl = urlHelper.getServerUrl(this.settings.githubServerUrl);
-        this.tokenConfigKey = `http.${serverUrl.origin}/.extraheader`; // "origin" is SCHEME://HOSTNAME[:PORT]
+        const baseUrl = urlHelper.getBaseUrl(serverUrl);
+        this.tokenConfigKey = `http.${baseUrl}/.extraheader`; // "origin" is SCHEME://HOSTNAME[:PORT]
         const basicCredential = Buffer.from(`x-access-token:${this.settings.authToken}`, 'utf8').toString('base64');
         core.setSecret(basicCredential);
         this.tokenPlaceholderConfigValue = `AUTHORIZATION: basic ***`;
         this.tokenConfigValue = `AUTHORIZATION: basic ${basicCredential}`;
         // Instead of SSH URL
-        this.insteadOfKey = `url.${serverUrl.origin}/.insteadOf`; // "origin" is SCHEME://HOSTNAME[:PORT]
+        this.insteadOfKey = `url.${baseUrl}/.insteadOf`; // "origin" is SCHEME://HOSTNAME[:PORT]
         this.insteadOfValues.push(`git@${serverUrl.hostname}:`);
         if (this.settings.workflowOrganizationId) {
             this.insteadOfValues.push(`org-${this.settings.workflowOrganizationId}@github.com:`);
@@ -307,7 +308,7 @@ class GitAuthHelper {
             this.sshKeyPath = path.join(runnerTemp, uniqueId);
             stateHelper.setSshKeyPath(this.sshKeyPath);
             yield fs.promises.mkdir(runnerTemp, { recursive: true });
-            yield fs.promises.writeFile(this.sshKeyPath, this.settings.sshKey.trim() + '\n', { mode: 0o600 });
+            yield fs.promises.writeFile(this.sshKeyPath, `${this.settings.sshKey.trim()}\n`, { mode: 0o600 });
             // Remove inherited permissions on Windows
             if (IS_WINDOWS) {
                 const icacls = yield io.which('icacls.exe');
@@ -2434,12 +2435,16 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.getBaseUrl = getBaseUrl;
 exports.getFetchUrl = getFetchUrl;
 exports.getServerUrl = getServerUrl;
 exports.getServerApiUrl = getServerApiUrl;
 exports.isGhes = isGhes;
 const assert = __importStar(__nccwpck_require__(9491));
 const url_1 = __nccwpck_require__(7310);
+function getBaseUrl(u) {
+    return `${u.protocol}//${u.host}${u.pathname.replace(/\/+$/g, '')}`;
+}
 function getFetchUrl(settings) {
     assert.ok(settings.repositoryOwner, 'settings.repositoryOwner must be defined');
     assert.ok(settings.repositoryName, 'settings.repositoryName must be defined');
@@ -2451,7 +2456,7 @@ function getFetchUrl(settings) {
         return `${user}@${serviceUrl.hostname}:${encodedOwner}/${encodedName}.git`;
     }
     // "origin" is SCHEME://HOSTNAME[:PORT]
-    return `${serviceUrl.origin}/${encodedOwner}/${encodedName}`;
+    return `${getBaseUrl(serviceUrl)}/${encodedOwner}/${encodedName}`;
 }
 function getServerUrl(url) {
     let resolvedUrl = process.env['GITHUB_SERVER_URL'] || 'https://github.com';
@@ -2462,12 +2467,12 @@ function getServerUrl(url) {
 }
 function getServerApiUrl(url) {
     if (hasContent(url, WhitespaceMode.Trim)) {
-        let serverUrl = getServerUrl(url);
+        const serverUrl = getServerUrl(url);
         if (isGhes(url)) {
             serverUrl.pathname = 'api/v3';
         }
         else {
-            serverUrl.hostname = 'api.' + serverUrl.hostname;
+            serverUrl.hostname = `api.${serverUrl.hostname}`;
         }
         return pruneSuffix(serverUrl.toString(), '/');
     }
